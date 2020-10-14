@@ -1,0 +1,354 @@
+%Compiled with TexLive + Visual Studio
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage{fullpage}
+\usepackage[top=2cm, bottom=4.5cm, left=2.5cm, headsep=24pt, right=2.5cm]{geometry}
+\usepackage{amsmath,amsthm,amsfonts,amssymb,amscd}
+\usepackage{lastpage}
+\usepackage{enumerate}
+\usepackage{fancyhdr}
+\usepackage{mathrsfs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage[utf8]{inputenc}
+\usepackage{physics}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{siunitx}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{pdfpages}
+\usepackage{soul}
+\usepackage{minted}
+
+\let\oldvec=\vec
+\renewcommand{\vec}[1]{\oldvec{\mathbf{#1}}}
+\def\doubleunderline#1{\underline{\underline{#1}}}
+
+\def\spvec#1{\left(\vcenter{\halign{\hfil$##$\hfil\cr \spvecA#1;;}}\right)}
+\def\spvecA#1;{\if;#1;\else #1\cr \expandafter \spvecA \fi}
+
+\renewcommand{\\}{\bigskip}
+
+\newenvironment{qns}[1]
+    {\begin{center}
+    \begin{tabular}{|p{0.9\textwidth}|}
+    \hline
+    \begin{center}
+        \textbf{#1}\\[1ex]
+    \end{center}
+
+    }
+    { 
+    \\\\\hline
+    \end{tabular} 
+    \end{center}
+    }
+
+
+
+
+\newtheorem{sol}{Solution}[subsection]
+  
+\newtheorem{thm}{Theorem}
+
+\renewcommand*{\l}{\left(}
+\renewcommand*{\r}{\right)}
+\newcommand{\partialt}{\frac{\partial}{\partial t}}
+\newcommand{\expectation}[1]{\left\langle #1 \right\rangle}
+\newcommand{\brakett}[3]{\left\langle#1\left|#2\right|#3\right\rangle}
+\newcommand{\partialf}[3]{\frac{\partial^{#3} #1}{\partial #2^{#3}}}
+\newcommand{\lbar}{\left|}
+\newcommand{\rbar}{\right|}
+\renewcommand*{\b}[1]{\mathbf{#1}}
+\def\matrix#1{\underline{\underline{#1}}}
+
+
+
+\title{Wavepacket Propagation Program (w/ Dr Nadav Avidor)}
+\author{Lorenzo Basso, Jack Lee, Matthew Zhang, Feiyang Chen}
+\date{April 2020}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+
+\pagestyle{fancy}
+\renewcommand{\subsectionmark}[1]{\markright{#1}{}}
+\fancyhead[C]{Version 5.0}
+\fancyfoot[C]{\thepage}% \fancyfoot[R]{\thepage}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{\rightmark}
+
+\newpage
+
+\section{WPP Introduction}
+\subsection{About}
+
+The Wavepacket propagation project is an extension of a Part III project by Ocean Haghighi-Daly. His paper is attached \hyperref[sec:Oceanreport]{below}. It is a working version of a 3D Split-Operator method of wavepacket propagation. The primary point of improvement to the program is that the propagation algorithm has been completely redone in CUDA C, which has greatly improvement the speed of simulation. Other improvements include various bugfixes of various issues (all of which can be found on the \href{https://github.com/nextaeja/2020-WP-Project}{Github Page} (Currently inaccesible to public))
+
+
+\subsection{Prerequisites}
+
+To begin with, a computer with a CUDA compatible GPU (\href{https://developer.nvidia.com/cuda-gpus#compute}{List of compatible GPUs}) is required.The MEX/CUDA dependent files have already been compiled for an x64 Linux and x64 Windows system with CUDA 10.1 compatibility. However, it is still potentially necessary to install a CUDA/C++ compiler depending on the CUDA capability your GPU has as matlab/CUDA can be quite finicky with versions.\\
+
+
+
+\textbf{Installation Guides:}
+
+\begin{itemize}
+    \item \href{https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64}{Latest CUDA Package Download} (If you believe you don't need to follow the installation guides as the Windows install is reasonably simple)
+    \item \href{https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html}{Windows Installation Guide}
+    \item \href{https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html}{Linux Installation Guide}
+    \item \href{https://docs.nvidia.com/cuda/cuda-installation-guide-mac-os-x/index.html}{Mac OS X Installation Guide}
+\end{itemize}
+
+These guides also include the relevant instructions to install CUDA/C++ compilers for your relevant OS. If for some reason the documentation is too tedious, we will (maybe) try to provide a simplified version that produces functionality in the \hyperref[sec:compilerinstall]{Appendix}\\
+
+\textbf{Setup MEXCUDA Compiler}\\
+
+\textbf{Windows:}\\
+
+For Windows, Visual Studio must be installed with the Desktop Development Package for C++ installed. If the user has MinGW compiler installer for previous MEX compile operators, then it may be necessary to change compilers. This is because MinGW is incompatible with MEXCUDA operations. This can be done by running
+
+\begin{minted}{matlab}
+    mex -setup C++
+\end{minted}
+
+Which will output something like the following:
+
+\begin{minted}{matlab}
+    MEX configured to use 'Microsoft Visual C++ 2019' for C++ language compilation.
+
+    'To choose a different C++ compiler, select one from the following':
+    MinGW64 mex -setup:'C:\PATHTO\mexopts\mingw64_g++.xml' C++
+    MSVS_2019 mex -setup:'C:\PATHTO\mexopts\msvcpp2019.xml' C++ 
+\end{minted}
+
+\begin{center}
+    \includegraphics[width = 0.6\textwidth]{Windows_Compiler.png}
+\end{center}
+
+\textbf{Linux:}\\
+
+For a Linux system, the CUDA installation should come with the corresponding NVCC compiler for MEXCUDA. GCC (The standard C++ compiler) is a prerequisite to installing CUDA, and is also necessary for code compilation.
+
+\bigskip
+
+\textbf{The required Matlab Toolboxes for the program to function are as follows:}
+\begin{itemize}
+    \item Parallel Computing Toolbox
+    \item Bioinformatics Toolbox
+\end{itemize}
+
+\section{Usage}
+
+\subsection{WavePacketPropagation\_Beta4\_2} 
+
+All variables are in SI units. \underline{\textit{SetupSIUnits.m}} initializes global variables used in picoscale wavefunction propagation:
+
+\begin{align*}
+    \textbf{hBar} &= 1.054571800 \times 10^{-34} Js\\
+    \textbf{c} &= 299792458 m/s\\
+    \textbf{eV} &= 1.6021766208 \times 10^{-19} J\\
+    \textbf{amu} &=  1.660539040 \times 10^{-27} kg\\
+    \textbf{A} &= 1.00 \times 10^{-10} m\\
+    \textbf{ps} &= 1.00 \times 10^{-12} s
+\end{align*}
+
+\textbf{lx}, \textbf{ly}, \textbf{lz} define the length of the box in which you want the wavefunction to propagate, while \textbf{nx, ny, nz} denote the grid sizing (how finely you want to splice up essentially). Grid sizing also determines how much memory is used (approximately $nx \times ny \times nz$ bits).\\
+
+\textbf{RealTimePlotting} displays each figure at the time intervals determined by \textbf{numGfxToSave}. Having this setting on also saves the figures when \textbf{SavingSimulationRunning = true}. It is greatly advised to either change \textbf{numGfxToSave} to 1 or set \textbf{RealTimePlotting} to false as it will greatly improve the simulation speed. This is because to render the images, the program must copy the CUDA C arrays into matlab, which we have noted to be extremely time consuming.\\
+
+\textbf{SavingSimulationRunning} will create a folder under \underline{\textit{SavedSimulation}} (unless otherwise specified by the user by changing \textbf{saveLocation}) and save the matlab arrays of the wavefunction while the program is running. With \textbf{RealTimePlotting} set as true, the figures shown will also be saved. The number of pictures saved is dependent on \textbf{numGfxToSave}. \textbf{numGfxToSave} breaks up the total iteration time into equally spaced blocks of time. It will also save the initialization data, and additionally, the final wavefunction as a matlab data file. As a result, this will also greatly increase simulation time.\\
+
+\textbf{SavingSimulationEnd} will make it so that the program only saves the final wavefunction, as well as the initialization data. This can be used if the propagation of the wavefunction is not as important. This does not significantly increase simulation time relative to \textbf{SavingSimulationRunning}\\
+
+\textbf{DisplayAdsorbateAnimation} shows the motion of the adsorbates in an animation. This can be useful useful if you're feeding a custom potential+path to ensure that it is phrased correctly. This setting generally does not signiicantly impact the overall performance of the program.\\
+
+\textbf{savingBrownianPaths} will save the randomly generated path to a txt file \textbf{Browniefile.txt} which can then be fed back to be used as a custom potential later.\\
+
+\textbf{propagationMethod} dictates the propagation method used for the program. The methods are implemented in matlab unless otherwise specified:
+
+\begin{enumerate}
+    \item Runge-Kutta method of Order 4
+    \item Split Operator of Order 2
+    \item Split Operator of Order 3 with K split
+    \item Split Operator of Order 3 with V split
+    \item Split Operator of Order 3 with V split, Time dependent
+    \item MEXCUDA while loop with Split Operator $O(dt^3)$ with Vsplit, Time dependent (This is the fastest implementation of CUDA)
+    \item Split Operator of Order 3 with V split, Time dependent in Matlab and CUDA (Primarily to compare the two methods, will output the average difference in the Psi tensor for each)
+    \item Matlab while loop with CUDA Split Operator Order 3, V Split, Time dependent (generally slower than method 6)
+\end{enumerate}
+
+\bigskip
+
+\textbf{numAdsorbates} determines the number of adsorbates on the scatter surface. There were previously issues which occured if the number of adsorbates in the custompaths file was different from that of the adsorbates declared in the program scope, but a fix has been pushed which holds for certainty with 3D wavepacket scattering. It is still unsure whether or not it holds for a 2D wave. \\
+
+
+\textbf{custompaths} is the file you feed with a custom potential and path for the adsorbates. The instructions are further detailed \hyperref[sec:custompaths]{below}.\\
+
+
+\textbf{decayType} is the potential that extends from the corrugation function in one dimension. 1 = exponential repulsive potential. 2 = Morse attractive. 3 = Morse-like, so it can be adjusted between morse and exponential by changing alpha. alpha = 0 is the same as exponential, alpha = 2 is morse. 4 = custom potential: this uses the custom potential in the text file specified by \textbf{potfile}, as explained later.\\
+
+    
+\textbf{potfile}: Text file containing floats for real and imaginary part of potential, seperated by \textbf{lz}. The potential should be high to prevent tunelling over cyclic boundary\\
+
+
+\textbf{zOffset} translates the entire corrugation function away from the surface by the distance specified. It can be used to prevent quantum tunnelling due to cyclic boundary conditions for \textbf{decayType} 1 - 3, or it can be made negative to allow you to specify the potential between the corrugation function and surface for
+\textbf{decayType} = 4.\\
+
+\subsection{Setup Folder}
+
+It is likely that the only file in here that needs to be changed at a user level will be \textit{\ul{SetupInitialWavefunction.m}}. If an alternative wavepacket is necessitated, it is preferable to add an alternative generating function rather than change the existing ones (\textit{\ul{InitializeGaussianWavefunction3D.m}}). The relevant parameters and functionality is detailed in considerable depth within each file itself.
+
+
+\subsection{Scripts}
+
+In the Scripts folders are various Matlab scripts used by Ocean Haghighi-Daly to plot and generate various test cases to demonstrate the program functions as the theory predicts.\\
+
+Relevant explanations for the various scripts are documented below:\\
+
+\textbf{Potential plotting.m} is a script used to initialize and generate various potentials forms. It can serve as a reference to the user to verify that relevant potentials are generated correctly within the program body itself\\
+
+\textbf{Plot Form Factors for different simulations - Interpolated.m}\\
+
+Not precisely sure\\
+
+\textbf{Plot Form Factors for different simulations.m}\\
+
+
+\textbf{Optimizing setup 3D.m}\\
+
+I have no idea what this does exactly\\
+
+\textbf{Optimizing setup.m}\\
+
+I have no idea what this does exactly\\
+
+\textbf{General plotting font and size settings.m}\\
+
+Not very useful for any user. Read ovr the short code as you desire.\\
+
+\textbf{Gaussian Random Error plotting.m}\\
+
+
+\textbf{Contour and form factor ring plotting.m}\\
+
+
+\textbf{autoRun.m}\\
+
+A code body that once allowed various different parameters to be fed into the body. Rendered effectively useless by all the recent improvements. \\
+
+\subsection{Saving}\\
+
+Most of these functions have been roughly explained up about in the WavePacketPropagation. The user can scan through the specific files and see exactly what the functioning code is and adapt as suitable for their own needs.\\
+
+\textbf{CreateNewSimulationFolder.m}: Functionality has been added to allow for saving to a specific folder/directory rather than the auto one which will simply create a "Saving" folder in the main program body. Aside from that, this file also has the functionality to autogenerate and increment sim---- folders that contain the results of a particular run. Multiple runs can be completed with one job if computation is done with a server and not on-site and the saved results will be sorted out accordingly across sim---- folders.\\
+
+\textbf{(Possibly) SavedSimulation}: If a custom SavedSimulation folder isn't specified by the user, then the program will by default, save the specified parameters to subfolders titled with sim----, where ---- are incrementing numbers. \\
+
+\subsection{RandomMotion}\\
+
+Nothing of particular use to the user\\
+
+\subsection{PropagationAlgorithms}\\
+
+This folder contains critical files to the functionality of the program. It is these algorithms that pass the wavefunction through timesteps to simulate the wavepacket propagation.\\
+
+The program predominantly exists to run on the Split-Operator method of wavepacket propagation. The file \textbf{RK4step.m} exists as it was used by Ocean Haghighi-Daly to demonstrate that the 3rd order Split Operator method functions within margin of error of a Runge-Kutta 4th order propagation algorithm.\\
+
+The time-dependent third order V-split operator is the primary one used for wavepacket propagation in this program body. The other matlab split-operator methods were used by Ocean to demonstrate functionality. We have left them as is as they are still available to be used as the primary propagation method for simulation.\\
+
+The primary method we recommend using is the CUDA C implementation of the third order V-split operator. It is significantly faster than any matlab implementation (up to 7x faster).\\
+
+\textbf{mexcudawhile.cu} is the a casting of the propagation of the iteration loop done in CUDA C. This saves time in keeping the arrays in purely CUDA C, rather than having to copy it between Matlab arrays and CUDA arrays for every step.\\
+
+
+\subsection{Print}
+
+Section contains files to print various properties about the wavefunction. They are all self-explanatory\\
+
+\subsection{PotentialFiles}
+
+This is a folder we used to store custom potential files. There is not much else to say about this. 
+
+\subsection{Operators}
+
+Matlab implementations of the Momentum and Energy Expectation operators.\\
+
+\subsection{MEX\_Helpers}\\
+
+This folder contains various helper code/headers for compiling the various CUDA C files used to replace their Matlab counterparts.\\
+
+\textbf{print\_CUDA\_array.cu} and \textbf{print\_complex\_CUDA\_array.cu} were used by Lorezno Basso to verify that the CUDA code functions near identically to the matlab code it was replacing.\\
+
+\textbf{cuda\_helper.h} and \textbf{cuda\_helper.cu} function as error checks to help debug the program when first writing the CUDA C implementations.\\
+
+\textbf{copy\_from\_CUDA\_complex.cu}, \textbf{copy\_CUDA\_complex\_array.cu}, and \textbf{copy\_CUDA\_array.cu} all function to copy arrays between CUDA C and Matlab. The second file has effectively superceded the third file, as it includes an implementation of complex numbers.\\
+
+\textbf{cmp\_complex\_matlab\_CUDA.cu} was also used to cross compare the matlab/CUDA arrays to verify its functionality.\\
+
+
+\subsection{Graphics}\\
+
+Files for displaying graphics related to the wavefunction propagation. Each file is roughly self-explanatory.\\
+
+\label{sec:custompaths}
+\section{Custom Paths and Potentials}
+Functionality to include custom adsorbate paths and potentials was added by Jack Lee.
+
+\begin{enumerate}
+    \item \textbf{Custom potential:} this allows you to specify a custom potential profile in the Z direction. To apply this, set \textbf{decayType} to 4 and specify a .txt file (in beta4\_2) as a string in potfile. This should contain several numbers separated by spaces (or new lines) which are the values for the potential in Joules in each cell of the simulation out from the corrugation function (+\textbf{zOffset}), i.e. the values are separated by a distance of \textbf{lz/nz}. The potential is zero for all z not specified by the file. \textbf{zOffset} should have a negative value, and can be used to extend the potential back from the gaussians to the surface, as if \textbf{zOffset} is 0 the area between the surface and the gaussian peaks will have 0 potential. The potential specified should be very high near the surface to prevent the wavepacket from getting past it, because the propagation algorithm leads to cyclic boundary conditions so any psi that reaches the end will appear at the other side, which is non-physical.
+    \item \textbf{Custom paths:} this allows you to specify the paths that adsorbates take, rather than having them be generated randomly. To enable this, set \textbf{custompaths} to true and specify in \textbf{pathfile} a text file (in beta4\_2) formatted as follows: the first entry on each line should be a time, then for each adsorbate there should be its x position and then its y position at that time, separated by spaces. There can be any number of times, as long as the first is $\leq$ \textbf{tStart} and the last is $\geq$ \textbf{tFinish}, and they’ll be interpolated to get the paths. 
+    \item \textbf{Saving paths:} this allows you to save the randomly generated paths adsorbates take this time in the simulation. It doesn’t do anything if custom paths is on. To enable it, set \textbf{savingBrownianPaths} to true and name a .txt file in \textbf{Browniefile}, which will be overwritten or created in beta4\_2. This saves the paths in the same format as custom paths reads them, with one line for each timestep of the simulation. These files can later be read by custom paths to reproduce this simulation (and could be used to vary the potential, detail etc.), although there is a small error introduced here so that the final psi from the custom paths simulation is slightly different to that of the original. Two custom paths simulations from the same source will be the same, however.
+\end{enumerate}
+
+
+
+\section{Appendix}
+
+\subsection{CUDA + Compiler Install}
+
+\label{sec:compilerinstall}
+\subsubsection{Windows}
+Installation for Windows is reasonably straightfoward. It requires first to download the \href{https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64}{Latest CUDA Package Download} and run the relevant executable file.\\
+
+\begin{center}
+    \includegraphics[width = 0.6\textwidth]{Windows_Compiler.png}
+\end{center}
+
+Next, Visual Studio must be installed with the Desktop Development Package for C++ installed. If the user has MinGW compiler installer for previous MEX compile operators, then it may be necessary to change compilers. This is because MinGW is incompatible with MEXCUDA operations. This can be done by running
+
+\begin{minted}{matlab}
+    mex -setup C++
+\end{minted}
+
+Which will output something like the following:
+
+\begin{minted}{matlab}
+    MEX configured to use 'Microsoft Visual C++ 2019' for C++ language compilation.
+
+    'To choose a different C++ compiler, select one from the following':
+    MinGW64 mex -setup:'C:\PATHTO\mexopts\mingw64_g++.xml' C++
+    MSVS_2019 mex -setup:'C:\PATHTO\mexopts\msvcpp2019.xml' C++ 
+\end{minted}
+
+
+\subsubsection{Linux}
+CUDA installation for Linux is significantly more annoying than Windows. As the installs for different distros can vary fairly significantly, the best suggestion I have is for the user to follow the instructions in the installation guides.\\
+
+The corresponding CUDA install should come with the NVCC compiler necessary to compile the MEXCUDA files.
+
+
+\subsection{Ocean Report}
+\label{sec:Oceanreport}
+The report is displayed on the next pages
+\includepdf[pages=-]{Ocean_report.pdf}
+
+\end{document}
